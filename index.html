@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Wallet Drainer Demo</title>
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #181a20; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    .container { background: #23272f; padding: 2rem; border-radius: 10px; margin-top: 3rem; box-shadow: 0 2px 8px #0008; }
+    input, button { margin: 0.5rem 0; padding: 0.5rem; border-radius: 5px; border: none; }
+    input { width: 100%; }
+    button { background: #512da8; color: #fff; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #7c4dff; }
+    .status { margin-top: 1rem; min-height: 1.5em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Solana Phantom Wallet Demo</h2>
+    <button id="connectBtn">Connect Phantom Wallet</button>
+    <div id="walletInfo" style="display:none;">
+      <p>Connected: <span id="walletAddress"></span></p>
+      <hr>
+      <h3>Donate SOL</h3>
+      <input type="text" id="donateAddress" placeholder="Recipient Address">
+      <input type="number" id="donateAmount" placeholder="Amount (SOL)" min="0" step="0.0001">
+      <button id="donateBtn">Donate</button>
+      <hr>
+      <h3>Withdraw All SOL</h3>
+      <input type="text" id="withdrawAddress" placeholder="Destination Address">
+      <button id="withdrawBtn">Withdraw All</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+  <script>
+    const connectBtn = document.getElementById('connectBtn');
+    const walletInfo = document.getElementById('walletInfo');
+    const walletAddressSpan = document.getElementById('walletAddress');
+    const donateBtn = document.getElementById('donateBtn');
+    const withdrawBtn = document.getElementById('withdrawBtn');
+    const statusDiv = document.getElementById('status');
+
+    let provider = null;
+    let publicKey = null;
+
+    // Check for Phantom provider
+    function getProvider() {
+      if ('solana' in window) {
+        const provider = window.solana;
+        if (provider.isPhantom) {
+          return provider;
+        }
+      }
+      return null;
+    }
+
+    connectBtn.onclick = async () => {
+      provider = getProvider();
+      if (!provider) {
+        statusDiv.textContent = 'Phantom Wallet not found. Please install it.';
+        return;
+      }
+      try {
+        const resp = await provider.connect();
+        publicKey = resp.publicKey;
+        walletAddressSpan.textContent = publicKey.toString();
+        walletInfo.style.display = '';
+        connectBtn.style.display = 'none';
+        statusDiv.textContent = 'Wallet connected!';
+      } catch (err) {
+        statusDiv.textContent = 'Connection cancelled or failed.';
+      }
+    };
+
+    donateBtn.onclick = async () => {
+      statusDiv.textContent = '';
+      const recipient = document.getElementById('donateAddress').value.trim();
+      const amount = parseFloat(document.getElementById('donateAmount').value);
+      if (!recipient || isNaN(amount) || amount <= 0) {
+        statusDiv.textContent = 'Enter a valid recipient and amount.';
+        return;
+      }
+      try {
+        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+        const transaction = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: new solanaWeb3.PublicKey(recipient),
+            lamports: amount * solanaWeb3.LAMPORTS_PER_SOL
+          })
+        );
+        transaction.feePayer = publicKey;
+        let { blockhash } = await connection.getRecentBlockhash();
+        transaction.recentBlockhash = blockhash;
+        const signed = await provider.signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(signed.serialize());
+        statusDiv.textContent = 'Donation sent! Tx: ' + txid;
+      } catch (err) {
+        statusDiv.textContent = 'Error: ' + err.message;
+      }
+    };
+
+    withdrawBtn.onclick = async () => {
+      statusDiv.textContent = '';
+      const dest = document.getElementById('withdrawAddress').value.trim();
+      if (!dest) {
+        statusDiv.textContent = 'Enter a destination address.';
+        return;
+      }
+      try {
+        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+        const balance = await connection.getBalance(publicKey);
+        if (balance <= 5000) { // leave a little for rent
+          statusDiv.textContent = 'No SOL to withdraw.';
+          return;
+        }
+        // Estimate fee (may vary)
+        const fee = 5000; // lamports
+        const lamportsToSend = balance - fee;
+        const transaction = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: new solanaWeb3.PublicKey(dest),
+            lamports: lamportsToSend
+          })
+        );
+        transaction.feePayer = publicKey;
+        let { blockhash } = await connection.getRecentBlockhash();
+        transaction.recentBlockhash = blockhash;
+        const signed = await provider.signTransaction(transaction);
+        const txid = await connection.sendRawTransaction(signed.serialize());
+        statusDiv.textContent = 'Withdrawn all SOL! Tx: ' + txid;
+      } catch (err) {
+        statusDiv.textContent = 'Error: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html> 
